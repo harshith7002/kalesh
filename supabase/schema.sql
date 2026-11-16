@@ -1,10 +1,14 @@
--- Kalesh: one-paste Supabase setup.
+-- Kalesh: one-paste Supabase setup for a NEW project.
+-- (Already ran an older version? Run migration_002_tags_and_quotes.sql instead.)
+-- Also turn on Authentication > Sign In / Providers > Allow anonymous sign-ins.
 -- Supabase Dashboard > SQL Editor > New query > paste everything > Run.
 
 -- 1. Tables ---------------------------------------------------------------
 
 create table if not exists public.posts (
   id            uuid primary key default gen_random_uuid(),
+  author_id     uuid,  -- anonymous user id of the writer; shown as a short #tag
+  quote_post_id uuid references public.posts(id) on delete set null,  -- Aag Lagao
   handle        text not null check (char_length(handle) between 2 and 24),
   city          text not null default 'All India',
   content       text not null check (char_length(content) between 1 and 500),
@@ -19,6 +23,7 @@ create table if not exists public.replies (
   id               uuid primary key default gen_random_uuid(),
   post_id          uuid not null references public.posts(id) on delete cascade,
   parent_reply_id  uuid references public.replies(id) on delete cascade,
+  author_id        uuid,
   handle           text not null check (char_length(handle) between 2 and 24),
   city             text not null default 'All India',
   content          text not null check (char_length(content) between 1 and 500),
@@ -32,6 +37,7 @@ create index if not exists posts_created_at_idx   on public.posts (created_at de
 create index if not exists posts_city_idx         on public.posts (city);
 create index if not exists replies_post_id_idx    on public.replies (post_id);
 create index if not exists replies_created_at_idx on public.replies (created_at desc);
+create index if not exists posts_quote_post_id_idx on public.posts (quote_post_id);
 
 -- 2. Row Level Security: anonymous public read / insert / update ----------
 
@@ -46,11 +52,11 @@ drop policy if exists "anyone can reply"            on public.replies;
 drop policy if exists "anyone can react to replies" on public.replies;
 
 create policy "posts are public"            on public.posts   for select using (true);
-create policy "anyone can post"             on public.posts   for insert with check (kadaks <= 5000 and forwards <= 5000);
+create policy "anyone can post"             on public.posts   for insert with check (kadaks <= 5000 and forwards <= 5000 and (author_id is null or author_id = auth.uid()));
 create policy "anyone can react to posts"   on public.posts   for update using (true) with check (true);
 
 create policy "replies are public"          on public.replies for select using (true);
-create policy "anyone can reply"            on public.replies for insert with check (kadaks <= 5000);
+create policy "anyone can reply"            on public.replies for insert with check (kadaks <= 5000 and (author_id is null or author_id = auth.uid()));
 create policy "anyone can react to replies" on public.replies for update using (true) with check (true);
 
 -- The update policies above are open to everyone, so column privileges limit

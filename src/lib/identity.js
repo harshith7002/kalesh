@@ -1,5 +1,5 @@
 import { CITIES } from './constants'
-import { pick, rand } from './utils'
+import { pick, rand, uid } from './utils'
 
 const ID_KEY = 'kalesh.identity.v1'
 const REACT_KEY = 'kalesh.reactions.v1'
@@ -48,7 +48,17 @@ export function loadIdentity() {
 }
 export const saveIdentity = (identity) => write(ID_KEY, identity)
 
-const EMPTY = { kadakPosts: [], kadakReplies: [], forwards: [] }
+// Local Demo Mode only: a random id that stands in for the Supabase user id.
+const DEVICE_KEY = 'kalesh.device.v1'
+export function loadDeviceId() {
+  const saved = read(DEVICE_KEY)
+  if (typeof saved === 'string' && saved.length >= 8) return saved
+  const fresh = uid()
+  write(DEVICE_KEY, fresh)
+  return fresh
+}
+
+const EMPTY = { kadakPosts: [], kadakReplies: [] }
 export function loadReactions() {
   return { ...EMPTY, ...(read(REACT_KEY) || {}) }
 }

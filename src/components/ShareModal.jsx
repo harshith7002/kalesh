@@ -3,7 +3,7 @@ import { Download, Link2, Loader2, X } from 'lucide-react'
 import { useApp } from '../context'
 import { downloadCard } from '../lib/shareCard'
 import { SITE_HOST, SITE_NAME, SITE_URL, TAGLINE } from '../lib/constants'
-import { avatarColor, formatCount, initialOf } from '../lib/utils'
+import { avatarColor, formatCount, initialOf, tagOf } from '../lib/utils'
 
 const FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
 const clip = (text, max) => (text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text)
@@ -63,7 +63,7 @@ function CardFace({ post, topReply, ratioed }) {
             width: 68,
             height: 68,
             borderRadius: 34,
-            background: avatarColor(post.handle),
+            background: avatarColor(post.author_id || post.handle),
             color: '#FFFFFF',
             fontSize: 30,
             fontWeight: 800,
@@ -75,7 +75,10 @@ function CardFace({ post, topReply, ratioed }) {
           {initialOf(post.handle)}
         </div>
         <div style={{ marginLeft: 18 }}>
-          <div style={{ fontSize: 30, fontWeight: 800 }}>{post.handle}</div>
+          <div style={{ fontSize: 30, fontWeight: 800 }}>
+            {post.handle}
+            {tagOf(post.author_id) && <span style={{ fontSize: 20, fontWeight: 500, color: '#71767B', marginLeft: 10 }}>{tagOf(post.author_id)}</span>}
+          </div>
           <div style={{ fontSize: 20, color: '#71767B', marginTop: 2 }}>
             {post.is_simulated ? 'Tested against the mob' : 'Live on the India feed'}
           </div>
@@ -86,7 +89,6 @@ function CardFace({ post, topReply, ratioed }) {
 
       <div style={{ fontSize: 22, color: '#71767B', marginTop: 14 }}>
         <span style={{ color: '#F59E0B', fontWeight: 700 }}>🔥 {formatCount(post.kadaks)} Kadak</span>
-        {post.forwards > 0 && <span> · ↪ {formatCount(post.forwards)} Aunty Forwards</span>}
       </div>
 
       {topReply && (

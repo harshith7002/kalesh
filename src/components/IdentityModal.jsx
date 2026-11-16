@@ -5,7 +5,7 @@ import { randomHandle, sanitizeHandle } from '../lib/identity'
 import { cx } from '../lib/utils'
 import Avatar from './Avatar'
 
-export default function IdentityModal({ identity, onSave, onClose }) {
+export default function IdentityModal({ identity, tag, verified, onSave, onClose }) {
   const [handle, setHandle] = useState(identity.handle.replace(/^@/, ''))
   const [city, setCity] = useState(identity.city)
   const clean = sanitizeHandle(handle)
@@ -29,6 +29,13 @@ export default function IdentityModal({ identity, onSave, onClose }) {
           </button>
         </div>
         <p className="mt-1 text-sm text-mute">No email, no password, no OTP. Saved only in this browser.</p>
+        {tag && (
+          <p className="mt-2 rounded-lg border border-line px-3 py-2 text-xs text-mute">
+            Your tag is <span className="font-mono font-bold text-text">{tag}</span>. It shows next to your handle on everything you post, so
+            people can tell you apart from anyone else using the same name.{' '}
+            {verified ? 'It is tied to this browser and nobody else can post with it.' : 'In Local Demo Mode it is only a local label.'}
+          </p>
+        )}
 
         <label className="mt-5 block text-xs font-semibold uppercase tracking-wider text-mute" htmlFor="handle-input">
           Handle

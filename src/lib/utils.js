@@ -43,6 +43,10 @@ export function avatarColor(handle = '') {
 
 export const initialOf = (handle = '') => (handle.replace(/^@/, '')[0] || '?').toUpperCase()
 
+// Short public tag from an author id, e.g. "#7F3A". Two people can pick the
+// same handle; they cannot share a tag.
+export const tagOf = (authorId) => (authorId ? `#${authorId.replace(/-/g, '').slice(0, 4).toUpperCase()}` : null)
+
 export const topReplyOf = (replies) =>
   replies.reduce((best, r) => (!best || r.kadaks > best.kadaks ? r : best), null)
 

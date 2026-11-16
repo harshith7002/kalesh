@@ -15,7 +15,7 @@ function Panel({ title, children }) {
 // Everything here is derived from the live posts and replies in the store,
 // so it moves as realtime events arrive.
 export function Panels({ posts, repliesByPost, cityFilter, onCity }) {
-  const { openThread } = useApp()
+  const { openThread, quotesOf } = useApp()
 
   const heat = useMemo(() => {
     const rows = CITIES.slice(1).map((city) => {
@@ -32,12 +32,12 @@ export function Panels({ posts, repliesByPost, cityFilter, onCity }) {
   const shame = useMemo(
     () =>
       posts
-        .map((post) => ({ post, replies: repliesByPost.get(post.id) || [] }))
+        .map((post) => ({ post, replies: [...(repliesByPost.get(post.id) || []), ...quotesOf(post.id)] }))
         .filter(({ post, replies }) => isRatioed(post, replies))
         .map(({ post, replies }) => ({ post, top: topReplyOf(replies) }))
         .sort((a, b) => b.top.kadaks - b.post.kadaks - (a.top.kadaks - a.post.kadaks))
         .slice(0, 4),
-    [posts, repliesByPost],
+    [posts, repliesByPost, quotesOf],
   )
 
   return (
@@ -93,7 +93,7 @@ export function Panels({ posts, repliesByPost, cityFilter, onCity }) {
       </Panel>
 
       <p className="px-2 text-xs text-mute">
-        Heat = Kadaks + 5 per reply. A reply with more Kadaks than its post stamps the post RATIO’D. Generated mob
+        Heat = Kadaks + 5 per reply. A reply or an Aag Lagao with more Kadaks than the post stamps it RATIO’D. Generated mob
         replies are always labelled.
       </p>
     </>

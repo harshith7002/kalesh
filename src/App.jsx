@@ -3,6 +3,7 @@ import { X, Zap } from 'lucide-react'
 import { AppContext } from './context'
 import { bumpPost, bumpReply, clearError, ensurePost, init, seedRemote, useStore } from './lib/store'
 import { loadIdentity, loadReactions, saveIdentity, saveReactions } from './lib/identity'
+import { tagOf } from './lib/utils'
 import Avatar from './components/Avatar'
 import BottomNav from './components/BottomNav'
 import CityTabs from './components/CityTabs'
@@ -10,6 +11,7 @@ import Composer from './components/Composer'
 import IdentityModal from './components/IdentityModal'
 import MobLab from './components/MobLab'
 import PostCard from './components/PostCard'
+import QuoteModal from './components/QuoteModal'
 import RightPanel, { Panels } from './components/RightPanel'
 import ShareModal from './components/ShareModal'
 import Sidebar from './components/Sidebar'
@@ -50,6 +52,7 @@ export default function App() {
   const [identityOpen, setIdentityOpen] = useState(false)
   const [toast, setToast] = useState(null)
   const [shareJob, setShareJob] = useState(null)
+  const [quoting, setQuoting] = useState(null) // post being quoted with Aag Lagao
   const deepLinked = useRef(false)
 
   useEffect(() => {
@@ -96,6 +99,19 @@ export default function App() {
     window.scrollTo(0, 0)
   }
 
+  const postsById = useMemo(() => new Map(store.posts.map((p) => [p.id, p])), [store.posts])
+
+  // Aag Lagao posts grouped by the post they quote.
+  const quotesByPost = useMemo(() => {
+    const map = new Map()
+    for (const p of store.posts) {
+      if (!p.quote_post_id) continue
+      if (!map.has(p.quote_post_id)) map.set(p.quote_post_id, [])
+      map.get(p.quote_post_id).push(p)
+    }
+    return map
+  }, [store.posts])
+
   const ctx = {
     identity,
     reactions,
@@ -105,16 +121,15 @@ export default function App() {
     setCity: (city) => updateIdentity({ ...identity, city }),
     toggleKadakPost: (id) => bumpPost(id, 'kadaks', toggle('kadakPosts', id)),
     toggleKadakReply: (id) => bumpReply(id, toggle('kadakReplies', id)),
-    toggleForward: (id) => {
-      const delta = toggle('forwards', id)
-      bumpPost(id, 'forwards', delta)
-      if (delta > 0) notify('Forwarded to 14 family groups 🙏')
-    },
     openThread: (id, ratioMode = false) => {
       setThread({ id, ratioMode })
       window.history.replaceState(null, '', `?post=${id}`)
     },
     share: (post, topReply, ratioed) => setShareJob({ post, topReply, ratioed }),
+    quote: (post) => setQuoting(post),
+    me: store.me,
+    postById: (id) => postsById.get(id),
+    quotesOf: (id) => quotesByPost.get(id) || EMPTY,
     openIdentity: () => setIdentityOpen(true),
     focusComposer: () => {
       setView('feed')
@@ -195,7 +210,7 @@ export default function App() {
                     title="Edit your burner identity"
                     aria-label={`Edit identity, currently ${identity.handle}`}
                   >
-                    <Avatar handle={identity.handle} size={24} />
+                    <Avatar handle={identity.handle} authorId={store.me} size={24} />
                     <span className="hidden truncate sm:inline">{identity.handle}</span>
                   </button>
                 </div>
@@ -247,11 +262,26 @@ export default function App() {
       {identityOpen && (
         <IdentityModal
           identity={identity}
+          tag={tagOf(store.me)}
+          verified={store.verified}
           onClose={() => setIdentityOpen(false)}
           onSave={(next) => {
             updateIdentity(next)
             setIdentityOpen(false)
             notify(`You are now ${next.handle} from ${next.city}`)
+          }}
+        />
+      )}
+
+      {quoting && (
+        <QuoteModal
+          post={quoting}
+          onClose={(posted) => {
+            setQuoting(null)
+            if (posted === true) {
+              closeThread()
+              changeView('feed')
+            }
           }}
         />
       )}

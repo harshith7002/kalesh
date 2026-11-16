@@ -25,6 +25,13 @@ npm run dev
 
 To see realtime work, open the site in two browsers and post in one.
 
+## Tags and Aag Lagao
+
+- **#tags.** Handles are free text, so two people can pick the same one. Every post and reply also carries a short tag (for example `#7F3A`) derived from the writer's anonymous Supabase user id. The database only accepts a row tagged with the caller's own id, so a tag cannot be faked. Turn on **Authentication > Sign In / Providers > Allow anonymous sign-ins** in Supabase; without it the app works but posts are untagged.
+- **Aag Lagao.** A quote post: your line on top, the original embedded underneath. A quote that out-Kadaks the original ratios it.
+- **Existing database?** Run `supabase/migration_002_tags_and_quotes.sql` once. New projects only need `schema.sql`.
+- Add `?demo` to the URL to force Local Demo Mode even when keys are set.
+
 ## Deploy to Vercel
 
 ```bash

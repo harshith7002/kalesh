@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react'
-import { supabase, isSupabaseConfigured } from './supabase'
+import { supabase, isSupabaseConfigured, anonymousUserId } from './supabase'
 import { buildSeed } from './seed'
+import { loadDeviceId } from './identity'
 import { uid } from './utils'
 
 const LS_KEY = 'kalesh.db.v1'
@@ -12,6 +13,8 @@ let state = {
   mode: isSupabaseConfigured ? 'supabase' : 'local', // 'supabase' | 'local'
   live: false, // realtime channel subscribed
   error: null,
+  me: null, // this browser's author id: Supabase anonymous user id, or a local device id
+  verified: false, // true when `me` is enforced by the database and cannot be forged
 }
 const listeners = new Set()
 const set = (patch) => {
@@ -54,7 +57,7 @@ function readLocal() {
 }
 function startLocal() {
   const data = readLocal() || buildSeed()
-  set({ ...data, loading: false, mode: 'local' })
+  set({ ...data, loading: false, mode: 'local', me: loadDeviceId(), verified: false })
   writeLocal()
   // Other tabs on the same browser stay in sync.
   window.addEventListener('storage', (e) => {
@@ -123,6 +126,18 @@ export async function ensurePost(id) {
   if (p.data) set({ posts: merge(state.posts, [p.data]), replies: merge(state.replies, r.data || []) })
 }
 
+// Insert that still works against a database created before author_id and
+// quote_post_id existed: PostgREST answers PGRST204 for an unknown column, so
+// retry without the newer fields instead of losing the post.
+async function insertRows(table, rows) {
+  let res = await supabase.from(table).insert(rows)
+  if (res.error?.code === 'PGRST204') {
+    const strip = ({ author_id, quote_post_id, ...rest }) => rest
+    res = await supabase.from(table).insert(Array.isArray(rows) ? rows.map(strip) : strip(rows))
+  }
+  return res
+}
+
 // Run a Supabase write; on failure surface the error and resync from the server.
 async function remote(query) {
   const { error } = await query
@@ -144,7 +159,9 @@ export async function init() {
   started = true
   if (!isSupabaseConfigured) return startLocal()
   try {
-    set({ ...(await fetchRemote()), loading: false })
+    // Sign in first so the realtime socket and every insert carry the user id.
+    const me = await anonymousUserId()
+    set({ ...(await fetchRemote()), loading: false, me, verified: Boolean(me) })
     subscribeRemote()
   } catch (err) {
     // Keys present but backend unreachable or tables missing: stay usable.
@@ -161,12 +178,15 @@ const commit = (patch) => {
   if (!isRemote()) writeLocal()
 }
 
-export function createPost({ handle, city, content }) {
+// quote_post_id set = an "Aag Lagao": a new post that embeds another one.
+export function createPost({ handle, city, content, quote_post_id = null }) {
   const row = {
     id: uid(),
+    author_id: state.me,
     handle,
     city,
     content,
+    quote_post_id,
     kadaks: 0,
     forwards: 0,
     is_simulated: false,
@@ -174,13 +194,14 @@ export function createPost({ handle, city, content }) {
     created_at: new Date().toISOString(),
   }
   commit({ posts: upsert(state.posts, row) })
-  if (isRemote()) remote(supabase.from('posts').insert(row))
+  if (isRemote()) remote(insertRows('posts', row))
   return row
 }
 
 export function createReply({ post_id, parent_reply_id = null, handle, city, content, is_ratio = false }) {
   const row = {
     id: uid(),
+    author_id: state.me,
     post_id,
     parent_reply_id,
     handle,
@@ -192,7 +213,7 @@ export function createReply({ post_id, parent_reply_id = null, handle, city, con
     created_at: new Date().toISOString(),
   }
   commit({ replies: upsert(state.replies, row) })
-  if (isRemote()) remote(supabase.from('replies').insert(row))
+  if (isRemote()) remote(insertRows('replies', row))
   return row
 }
 
@@ -215,9 +236,11 @@ export async function publishSimulation({ handle, city, content, kadaks, ratio_s
   const now = Date.now()
   const post = {
     id: uid(),
+    author_id: state.me,
     handle,
     city,
     content,
+    quote_post_id: null,
     kadaks,
     forwards: 0,
     is_simulated: true,
@@ -226,6 +249,7 @@ export async function publishSimulation({ handle, city, content, kadaks, ratio_s
   }
   const rows = replies.map((r, i) => ({
     id: uid(),
+    author_id: null, // generated mob accounts are nobody's: they never get a tag
     post_id: post.id,
     parent_reply_id: null,
     handle: r.handle,
@@ -239,7 +263,7 @@ export async function publishSimulation({ handle, city, content, kadaks, ratio_s
   commit({ posts: upsert(state.posts, post), replies: [...state.replies, ...rows] })
   if (isRemote()) {
     // Post first: replies carry a foreign key to it.
-    if (await remote(supabase.from('posts').insert(post))) await remote(supabase.from('replies').insert(rows))
+    if (await remote(insertRows('posts', post))) await remote(insertRows('replies', rows))
   }
   return post
 }

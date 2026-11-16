@@ -1,8 +1,10 @@
-import { Flame, Forward, ImageDown, MessageCircle, Skull } from 'lucide-react'
+import { useEffect } from 'react'
+import { Flame, Fuel, ImageDown, MessageCircle, Skull } from 'lucide-react'
 import { useApp } from '../context'
+import { ensurePost } from '../lib/store'
 import { cx, formatCount, isRatioed, timeAgo, topReplyOf } from '../lib/utils'
 import Avatar from './Avatar'
-import { CityBadge, ForwardedBadge, RatioBadge, SimBadge } from './Badges'
+import { AuthorName, CityBadge, RatioBadge, SimBadge } from './Badges'
 
 function Action({ icon: Icon, label, count, active, activeClass, hoverClass, onClick }) {
   return (
@@ -32,10 +34,46 @@ function Action({ icon: Icon, label, count, active, activeClass, hoverClass, onC
   )
 }
 
+// The post an "Aag Lagao" is quoting, shown as a compact card inside it.
+export function QuoteEmbed({ postId, interactive = true }) {
+  const { postById, openThread } = useApp()
+  const original = postById(postId)
+
+  // The original may be older than the loaded window: fetch it once.
+  useEffect(() => {
+    if (!original) ensurePost(postId)
+  }, [original, postId])
+
+  if (!original) {
+    return <div className="mt-2 rounded-xl border border-line px-3 py-2 text-sm text-mute">Original kalesh is not available.</div>
+  }
+  return (
+    <div
+      role={interactive ? 'link' : undefined}
+      onClick={(e) => {
+        if (!interactive) return
+        e.stopPropagation()
+        openThread(original.id)
+      }}
+      className={cx('mt-2 rounded-xl border border-line px-3 py-2', interactive && 'cursor-pointer transition-colors hover:bg-white/5')}
+    >
+      <div className="flex items-center gap-2">
+        <Avatar handle={original.handle} authorId={original.author_id} size={20} />
+        <AuthorName handle={original.handle} authorId={original.author_id} small />
+        <span className="shrink-0 text-xs text-mute">· {timeAgo(original.created_at)}</span>
+      </div>
+      <p className="mt-1 line-clamp-3 whitespace-pre-wrap break-words text-sm text-text/90">{original.content}</p>
+    </div>
+  )
+}
+
 export default function PostCard({ post, replies, detail = false }) {
-  const { reactions, toggleKadakPost, toggleForward, openThread, share } = useApp()
-  const ratioed = isRatioed(post, replies)
-  const top = topReplyOf(replies)
+  const { reactions, toggleKadakPost, openThread, share, quote, quotesOf } = useApp()
+  const quotes = quotesOf(post.id)
+  // A post can be ratio'd by a reply or by an Aag Lagao that out-Kadaks it.
+  const rivals = quotes.length ? [...replies, ...quotes] : replies
+  const ratioed = isRatioed(post, rivals)
+  const top = topReplyOf(rivals)
   const open = () => !detail && openThread(post.id)
   const focusReply = () => document.getElementById('reply-input')?.focus()
 
@@ -50,12 +88,17 @@ export default function PostCard({ post, replies, detail = false }) {
         ratioed && 'bg-danger/[0.04]',
       )}
     >
-      {post.forwards > 0 && <ForwardedBadge />}
+      {post.quote_post_id && (
+        <div className="mb-1 flex items-center gap-1.5 pl-[52px] text-xs font-semibold text-orange-400">
+          <Fuel size={13} />
+          Aag Lagao
+        </div>
+      )}
       <div className="flex gap-3">
-        <Avatar handle={post.handle} size={detail ? 46 : 40} />
+        <Avatar handle={post.handle} authorId={post.author_id} size={detail ? 46 : 40} />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="truncate font-bold text-text">{post.handle}</span>
+            <AuthorName handle={post.handle} authorId={post.author_id} />
             <span className="text-sm text-mute">· {timeAgo(post.created_at)}</span>
             <CityBadge city={post.city} />
             {post.is_simulated && <SimBadge label="Mob-tested" />}
@@ -65,6 +108,8 @@ export default function PostCard({ post, replies, detail = false }) {
           <p className={cx('mt-1 whitespace-pre-wrap break-words text-text', detail ? 'text-xl leading-7' : 'text-[15px] leading-5')}>
             {post.content}
           </p>
+
+          {post.quote_post_id && <QuoteEmbed postId={post.quote_post_id} />}
 
           {!detail && ratioed && top && (
             <div className="mt-2 rounded-xl border border-danger/40 bg-card px-3 py-2 text-sm">
@@ -92,13 +137,11 @@ export default function PostCard({ post, replies, detail = false }) {
               onClick={() => toggleKadakPost(post.id)}
             />
             <Action
-              icon={Forward}
-              label="Aunty Forward"
-              count={post.forwards}
-              active={reactions.forwards.includes(post.id)}
-              activeClass="text-emerald-400"
-              hoverClass="hover:bg-emerald-400/10 hover:text-emerald-400"
-              onClick={() => toggleForward(post.id)}
+              icon={Fuel}
+              label="Aag Lagao"
+              count={quotes.length}
+              hoverClass="hover:bg-orange-400/10 hover:text-orange-400"
+              onClick={() => quote(post)}
             />
             <Action
               icon={Skull}

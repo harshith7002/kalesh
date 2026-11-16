@@ -1,4 +1,6 @@
-import { Forward, MapPin, FlaskConical } from 'lucide-react'
+import { MapPin, FlaskConical } from 'lucide-react'
+import { useApp } from '../context'
+import { cx, tagOf } from '../lib/utils'
 
 export function CityBadge({ city }) {
   return (
@@ -26,15 +28,21 @@ export function SimBadge({ label = 'Simulated' }) {
   )
 }
 
-// WhatsApp-style stamp.
-export function ForwardedBadge() {
+// Handle plus the per-browser tag that tells same-named users apart.
+export function AuthorName({ handle, authorId, small = false }) {
+  const { me } = useApp()
+  const tag = tagOf(authorId)
   return (
-    <div className="mb-1 flex items-center gap-1 text-xs italic text-mute">
-      <span className="flex -space-x-2">
-        <Forward size={13} />
-        <Forward size={13} />
-      </span>
-      Forwarded many times
-    </div>
+    <span className="flex min-w-0 items-baseline gap-1">
+      <span className={cx('truncate font-bold text-text', small && 'text-sm')}>{handle}</span>
+      {tag && (
+        <span className="shrink-0 font-mono text-[11px] text-mute" title="Unique tag for this person's browser">
+          {tag}
+        </span>
+      )}
+      {authorId && authorId === me && (
+        <span className="shrink-0 rounded bg-sky/15 px-1 text-[10px] font-bold uppercase text-sky">you</span>
+      )}
+    </span>
   )
 }

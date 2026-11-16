@@ -24,7 +24,7 @@ function NavItem({ icon: Icon, label, active, secondary, onClick }) {
 }
 
 export default function Sidebar() {
-  const { identity, view, setView, focusComposer, openIdentity } = useApp()
+  const { identity, me, view, setView, focusComposer, openIdentity } = useApp()
   return (
     <header className="sticky top-0 hidden h-screen w-[72px] shrink-0 flex-col items-center justify-between px-2 py-3 sm:flex xl:w-[275px] xl:items-stretch">
       <div className="flex flex-col items-center gap-1 xl:items-start">
@@ -60,7 +60,7 @@ export default function Sidebar() {
         className="flex items-center gap-3 rounded-full p-2 text-left transition-colors hover:bg-white/10"
         title="Edit your burner identity"
       >
-        <Avatar handle={identity.handle} size={40} />
+        <Avatar handle={identity.handle} authorId={me} size={40} />
         <span className="hidden min-w-0 xl:block">
           <span className="block truncate text-sm font-bold">{identity.handle}</span>
           <span className="block truncate text-xs text-mute">{identity.city} · no login, ever</span>

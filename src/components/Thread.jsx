@@ -6,11 +6,11 @@ import { MAX_LEN } from '../lib/constants'
 import { cx, formatCount, timeAgo } from '../lib/utils'
 import Avatar from './Avatar'
 import PostCard from './PostCard'
-import { SimBadge } from './Badges'
+import { AuthorName, SimBadge } from './Badges'
 import { CharCounter } from './Composer'
 
 function ReplyBox({ postId, parentId = null, replyingTo, ratioDefault = false, autoFocus = false, compact = false, onDone }) {
-  const { identity, notify } = useApp()
+  const { identity, me, notify } = useApp()
   const [text, setText] = useState('')
   const [ratio, setRatio] = useState(ratioDefault)
   const trimmed = text.trim()
@@ -33,7 +33,7 @@ function ReplyBox({ postId, parentId = null, replyingTo, ratioDefault = false, a
 
   return (
     <div className={cx('flex gap-3', compact ? 'mt-2' : 'border-b border-line px-4 py-3')}>
-      {!compact && <Avatar handle={identity.handle} size={40} />}
+      {!compact && <Avatar handle={identity.handle} authorId={me} size={40} />}
       <div className="min-w-0 flex-1">
         {replyingTo && <div className="mb-1 text-xs text-mute">Replying to <span className="text-sky">{replyingTo}</span></div>}
         <textarea
@@ -91,10 +91,10 @@ function ReplyItem({ reply, post, childrenOf, depth }) {
     // Indent caps at depth 4 so long arguments stay readable on phones.
     <div className={cx(depth > 0 && depth <= 4 && 'ml-4 border-l border-line pl-3 sm:ml-5')}>
       <div className={cx('flex animate-rise gap-3 py-3', depth === 0 && 'px-4')}>
-        <Avatar handle={reply.handle} size={depth === 0 ? 36 : 30} />
+        <Avatar handle={reply.handle} authorId={reply.author_id} size={depth === 0 ? 36 : 30} />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="truncate text-sm font-bold text-text">{reply.handle}</span>
+            <AuthorName handle={reply.handle} authorId={reply.author_id} small />
             <span className="text-xs text-mute">· {timeAgo(reply.created_at)}</span>
             {reply.archetype && <SimBadge label={reply.archetype} />}
             {reply.is_ratio && !beatsPost && (

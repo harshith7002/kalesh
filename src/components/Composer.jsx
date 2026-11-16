@@ -66,7 +66,7 @@ export function autoGrow(el) {
 }
 
 export default function Composer() {
-  const { identity, setCity, notify } = useApp()
+  const { identity, me, setCity, notify } = useApp()
   const [text, setText] = useState('')
   const ref = useRef(null)
   const trimmed = text.trim()
@@ -82,7 +82,7 @@ export default function Composer() {
 
   return (
     <div className="flex gap-3 border-b border-line px-4 pb-2 pt-3">
-      <Avatar handle={identity.handle} size={40} />
+      <Avatar handle={identity.handle} authorId={me} size={40} />
       <div className="min-w-0 flex-1">
         <textarea
           id="composer-input"
